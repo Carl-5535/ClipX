@@ -68,6 +68,7 @@ private:
     void Scroll(int delta);
     void ShowContextMenu(int x, int y, int itemIndex);
     std::wstring ShowSimpleInputDialog(const std::wstring& title, const std::wstring& prompt);
+    int GetTextWidth(const std::string& text);
 
     HINSTANCE m_hInstance = nullptr;
     HWND m_hwnd = nullptr;
@@ -93,6 +94,7 @@ private:
     bool m_searchFocused = true;
     bool m_showingDialog = false;  // Prevents auto-hide when showing child dialogs
     bool m_isSearching = false;    // Prevents auto-hide during search operations
+    bool m_caretVisible = false;   // Caret visibility state for search box
 
     // Tag panel state
     std::vector<std::pair<std::string, int>> m_allTags;  // Tag name and count

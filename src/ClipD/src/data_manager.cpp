@@ -46,6 +46,7 @@ bool DataManager::Initialize(const std::string& dbPath) {
     // Enable WAL mode for better performance
     sqlite3_exec(m_db, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
     sqlite3_exec(m_db, "PRAGMA synchronous=NORMAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(m_db, "PRAGMA foreign_keys=ON;", nullptr, nullptr, nullptr);
 
     // Create tables
     if (!CreateTables()) {

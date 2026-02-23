@@ -103,6 +103,7 @@ void OverlayWindow::Show() {
     m_selectedIndex = 0;
     m_scrollOffset = 0;
     m_searchFocused = true;
+    m_caretVisible = false;  // Will be set to true in WM_SETFOCUS
     m_selectedTag.clear();
     m_hoverTagIndex = -1;
 
@@ -192,6 +193,27 @@ LRESULT OverlayWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
             OnChar(wParam);
             return 0;
 
+        case WM_IME_CHAR:
+            // Handle IME input (Chinese, Japanese, etc.)
+            OnChar(wParam);
+            return 0;
+
+        case WM_SETFOCUS:
+            CreateCaret(m_hwnd, nullptr, 2, 16);
+            m_caretVisible = true;
+            SetCaretPos(m_padding + 30 + GetTextWidth(m_searchText), m_padding + 12);
+            ShowCaret(m_hwnd);
+            return 0;
+
+        case WM_KILLFOCUS:
+            m_caretVisible = false;
+            HideCaret(m_hwnd);
+            DestroyCaret();
+            if (!m_showingDialog && !m_isSearching) {
+                Hide();
+            }
+            return 0;
+
         case WM_MOUSEMOVE:
             OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             return 0;
@@ -214,12 +236,6 @@ LRESULT OverlayWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
         case WM_ACTIVATE:
             if (LOWORD(wParam) == WA_INACTIVE && !m_showingDialog && !m_isSearching) {
-                Hide();
-            }
-            return 0;
-
-        case WM_KILLFOCUS:
-            if (!m_showingDialog && !m_isSearching) {
                 Hide();
             }
             return 0;
@@ -509,6 +525,9 @@ void OverlayWindow::OnKeyDown(WPARAM vk) {
                 }
                 m_searchText = m_searchText.substr(0, len);
 
+                // Update caret position
+                SetCaretPos(m_padding + 30 + GetTextWidth(m_searchText), m_padding + 12);
+
                 // Trigger search callback with protection against focus loss
                 if (m_onSearch) {
                     m_isSearching = true;
@@ -560,6 +579,10 @@ void OverlayWindow::OnChar(WPARAM ch) {
         }
 
         m_searchFocused = true;
+
+        // Update caret position (always update if window has focus)
+        SetCaretPos(m_padding + 30 + GetTextWidth(m_searchText), m_padding + 12);
+
         // Trigger search callback with protection against focus loss
         if (m_onSearch) {
             m_isSearching = true;
@@ -764,12 +787,24 @@ void OverlayWindow::ShowContextMenu(int x, int y, int itemIndex) {
             if (!tag.empty() && m_onAddTag) {
                 std::string tagUtf8 = utils::WideToUtf8(tag);
                 m_onAddTag(m_entries[itemIndex].id, tagUtf8);
+                // Update the entry's local tags list
+                m_entries[itemIndex].tags.push_back(tagUtf8);
+                // Refresh tag panel
+                if (m_onGetAllTags) {
+                    m_allTags = m_onGetAllTags();
+                }
+                InvalidateRect(m_hwnd, nullptr, FALSE);
             }
             break;
         }
         case 2: // Delete
             if (m_onDelete) {
                 m_onDelete(m_entries[itemIndex].id);
+                // Note: entries will be updated via SetEntries callback from main.cpp
+                // Refresh tag panel
+                if (m_onGetAllTags) {
+                    m_allTags = m_onGetAllTags();
+                }
             }
             break;
         case 3: { // View Tags
@@ -786,7 +821,7 @@ void OverlayWindow::ShowContextMenu(int x, int y, int itemIndex) {
                 } else {
                     std::wstring tagList = L"Tags:\n\n";
                     for (const auto& tag : tags) {
-                        tagList += L"• " + utils::Utf8ToWide(tag) + L"\n";
+                        tagList += L"- " + utils::Utf8ToWide(tag) + L"\n";
                     }
                     m_showingDialog = true;
                     MessageBoxW(m_hwnd, tagList.c_str(), L"Tags", MB_OK | MB_ICONINFORMATION);
@@ -965,6 +1000,27 @@ std::wstring OverlayWindow::ShowSimpleInputDialog(const std::wstring& title, con
     }
 
     return L"";
+}
+
+int OverlayWindow::GetTextWidth(const std::string& text) {
+    if (!m_font || text.empty()) return 0;
+
+    std::wstring wtext = utils::Utf8ToWide(text);
+
+    // Get window DC and select font
+    HDC hdc = GetDC(m_hwnd);
+    if (!hdc) return 0;
+
+    HFONT oldFont = static_cast<HFONT>(SelectObject(hdc, m_font));
+
+    // Use DrawText with DT_CALCRECT to get accurate text width
+    RECT rect = {0, 0, 0, 0};
+    DrawTextW(hdc, wtext.c_str(), static_cast<int>(wtext.length()), &rect, DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+
+    SelectObject(hdc, oldFont);
+    ReleaseDC(m_hwnd, hdc);
+
+    return rect.right;
 }
 
 } // namespace clipx
