@@ -119,18 +119,18 @@ private:
     HFONT m_fontBold = nullptr;
     HFONT m_fontSmall = nullptr;
 
-    // Colors
-    COLORREF m_bgColor = RGB(243, 243, 243);
-    COLORREF m_itemColor = RGB(255, 255, 255);
-    COLORREF m_itemHoverColor = RGB(229, 243, 255);
-    COLORREF m_itemSelectedColor = RGB(204, 232, 255);
-    COLORREF m_textColor = RGB(26, 26, 26);
-    COLORREF m_textSecondaryColor = RGB(102, 102, 102);
-    COLORREF m_borderColor = RGB(224, 224, 224);
-    COLORREF m_accentColor = RGB(0, 120, 212);
-    COLORREF m_searchBgColor = RGB(255, 255, 255);
-    COLORREF m_tagBgColor = RGB(200, 230, 255);
-    COLORREF m_tagTextColor = RGB(0, 80, 150);
+    // Colors - Glass theme (dark semi-transparent)
+    COLORREF m_bgColor = RGB(32, 32, 32);              // Dark background
+    COLORREF m_itemColor = RGB(45, 45, 45);             // Slightly lighter items
+    COLORREF m_itemHoverColor = RGB(60, 60, 65);        // Hover state
+    COLORREF m_itemSelectedColor = RGB(0, 90, 158);     // Selection accent
+    COLORREF m_textColor = RGB(240, 240, 240);          // Light text
+    COLORREF m_textSecondaryColor = RGB(160, 160, 160); // Secondary text
+    COLORREF m_borderColor = RGB(60, 60, 65);           // Subtle borders
+    COLORREF m_accentColor = RGB(0, 120, 212);          // Accent blue
+    COLORREF m_searchBgColor = RGB(40, 40, 45);         // Search background
+    COLORREF m_tagBgColor = RGB(0, 90, 140);            // Tag background
+    COLORREF m_tagTextColor = RGB(200, 230, 255);       // Tag text
 };
 
 } // namespace clipx

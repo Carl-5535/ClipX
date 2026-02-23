@@ -4,6 +4,50 @@
 #include "common/utils.h"
 #include <windowsx.h>
 #include <algorithm>
+#include <dwmapi.h>
+
+#pragma comment(lib, "dwmapi.lib")
+
+// Windows 10 Acrylic effect support (undocumented API)
+enum WINDOWCOMPOSITIONATTRIB {
+    WCA_UNDEFINED = 0,
+    WCA_NCRENDERING_ENABLED = 1,
+    WCA_NCRENDERING_POLICY = 2,
+    WCA_TRANSITIONS_FORCEDISABLED = 3,
+    WCA_ALLOW_NCPAINT = 4,
+    WCA_CAPTION_BUTTON_BOUNDS = 5,
+    WCA_NONCLIENT_RTL_LAYOUT = 6,
+    WCA_FORCE_ICONIC_REPRESENTATION = 7,
+    WCA_EXTENDED_FRAME_BOUNDS = 8,
+    WCA_HAS_ICONIC_BITMAP = 9,
+    WCA_DISALLOW_PEEK = 10,
+    WCA_EXCLUDED_FROM_PEEK = 11,
+    WCA_CLOAK = 12,
+    WCA_CLOAKED = 13,
+    WCA_ACCENT_POLICY = 19,
+    WCA_FREEZE_REPRESENTATION = 25,
+};
+
+enum ACCENT_STATE {
+    ACCENT_DISABLED = 0,
+    ACCENT_ENABLE_BLURBEHIND = 3,
+    ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
+};
+
+struct ACCENT_POLICY {
+    ACCENT_STATE AccentState;
+    DWORD AccentFlags;
+    DWORD GradientColor;
+    DWORD AnimationId;
+};
+
+struct WINDOWCOMPOSITIONATTRIBDATA {
+    WINDOWCOMPOSITIONATTRIB Attrib;
+    PVOID pvData;
+    SIZE_T cbData;
+};
+
+typedef BOOL(WINAPI* pfnSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
 
 namespace clipx {
 
@@ -71,10 +115,42 @@ bool OverlayWindow::Initialize(HINSTANCE hInstance) {
         return false;
     }
 
-    // Set window opacity
-    SetLayeredWindowAttributes(m_hwnd, 0, static_cast<BYTE>(255 * 0.95), LWA_ALPHA);
+    // Enable glass/acrylic effect
+    bool glassEnabled = false;
 
-    LOG_INFO("OverlayWindow initialized");
+    // Try Windows 10 Acrylic effect first (more modern)
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    if (hUser32) {
+        pfnSetWindowCompositionAttribute SetWindowCompositionAttribute =
+            (pfnSetWindowCompositionAttribute)GetProcAddress(hUser32, "SetWindowCompositionAttribute");
+
+        if (SetWindowCompositionAttribute) {
+            // Accent color with alpha: 0xAARRGGBB (ARGB)
+            // Using semi-transparent dark background: 0xB0202020 (dark gray with ~69% opacity)
+            ACCENT_POLICY accent = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 2, 0xB0202020, 0 };
+            WINDOWCOMPOSITIONATTRIBDATA data = { WCA_ACCENT_POLICY, &accent, sizeof(accent) };
+            glassEnabled = SetWindowCompositionAttribute(m_hwnd, &data);
+        }
+    }
+
+    // Fallback to DWM Blur Behind for Windows 7/8
+    if (!glassEnabled) {
+        DWM_BLURBEHIND bb = { 0 };
+        bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
+        bb.fEnable = TRUE;
+        bb.hRgnBlur = CreateRectRgn(0, 0, -1, -1);  // Entire window
+        DwmEnableBlurBehindWindow(m_hwnd, &bb);
+        if (bb.hRgnBlur) DeleteObject(bb.hRgnBlur);
+    }
+
+    // Extend frame into client area for glass effect
+    MARGINS margins = { -1, -1, -1, -1 };
+    DwmExtendFrameIntoClientArea(m_hwnd, &margins);
+
+    // Set window opacity - slightly more transparent for glass effect
+    SetLayeredWindowAttributes(m_hwnd, 0, static_cast<BYTE>(255 * 0.98), LWA_ALPHA);
+
+    LOG_INFO("OverlayWindow initialized with glass effect");
     return true;
 }
 
@@ -205,6 +281,10 @@ LRESULT OverlayWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
             ShowCaret(m_hwnd);
             return 0;
 
+        case WM_ERASEBKGND:
+            // Prevent flickering - we handle background in WM_PAINT
+            return 1;
+
         case WM_KILLFOCUS:
             m_caretVisible = false;
             HideCaret(m_hwnd);
@@ -290,7 +370,7 @@ void OverlayWindow::OnPaint() {
     int tagPanelY = m_searchBarHeight + m_padding * 2;
     if (m_showTagPanel && !m_allTags.empty()) {
         RECT tagPanelRect = {m_padding, tagPanelY, width - m_padding, tagPanelY + m_tagPanelHeight};
-        renderer::FillRect(m_memDC, &tagPanelRect, RGB(250, 250, 250));
+        renderer::FillRect(m_memDC, &tagPanelRect, RGB(40, 40, 45));
 
         // Draw tag panel border
         renderer::DrawLine(m_memDC, tagPanelRect.left, tagPanelRect.bottom - 1, tagPanelRect.right, tagPanelRect.bottom - 1, m_borderColor);
@@ -307,7 +387,7 @@ void OverlayWindow::OnPaint() {
         // Draw "All" tag first (to clear filter)
         std::wstring allTagText = L"All";
         bool isAllSelected = m_selectedTag.empty();
-        COLORREF allTagBg = isAllSelected ? m_accentColor : RGB(230, 230, 230);
+        COLORREF allTagBg = isAllSelected ? m_accentColor : RGB(70, 70, 75);
         COLORREF allTagTextCol = isAllSelected ? RGB(255, 255, 255) : m_textColor;
 
         SIZE allTextSize;
@@ -328,7 +408,7 @@ void OverlayWindow::OnPaint() {
 
             bool isSelected = m_selectedTag == tagName;
             bool isHovered = static_cast<int>(i) == m_hoverTagIndex;
-            COLORREF tagBg = isSelected ? m_accentColor : (isHovered ? RGB(210, 230, 250) : m_tagBgColor);
+            COLORREF tagBg = isSelected ? m_accentColor : (isHovered ? RGB(80, 100, 120) : m_tagBgColor);
             COLORREF tagTextCol = isSelected ? RGB(255, 255, 255) : m_tagTextColor;
 
             SIZE textSize;
@@ -344,7 +424,7 @@ void OverlayWindow::OnPaint() {
 
                 if (tagX + moreWidth <= tagPanelRect.right - 8) {
                     RECT moreRect = {tagX, tagY, tagX + moreWidth, tagY + tagHeight};
-                    renderer::DrawRoundedRect(m_memDC, &moreRect, 4, RGB(230, 230, 230));
+                    renderer::DrawRoundedRect(m_memDC, &moreRect, 4, RGB(70, 70, 75));
                     RECT moreTextRect = {tagX + tagPaddingX, tagY, tagX + moreWidth - tagPaddingX, tagY + tagHeight};
                     renderer::DrawText(m_memDC, moreText, &moreTextRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE, m_textSecondaryColor);
                 }
@@ -444,7 +524,7 @@ void OverlayWindow::OnPaint() {
                 tagX -= moreWidth + 4;
                 if (tagX >= itemRect.left + 40) {
                     RECT moreRect = {tagX, tagY, tagX + moreWidth, tagY + tagHeight};
-                    renderer::DrawRoundedRect(m_memDC, &moreRect, 3, RGB(230, 230, 230));
+                    renderer::DrawRoundedRect(m_memDC, &moreRect, 3, RGB(70, 70, 75));
 
                     RECT moreTextRect = {tagX + tagPadding, tagY, tagX + moreWidth - tagPadding, tagY + tagHeight};
                     renderer::DrawText(m_memDC, moreText, &moreTextRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE, m_textSecondaryColor);
