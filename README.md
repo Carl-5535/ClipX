@@ -2,6 +2,9 @@
 
 > 超轻量级、本地持久化、无条数限制的 Windows 剪贴板增强工具
 
+[![Release](https://img.shields.io/badge/release-V0.0.1-blue)](https://github.com/your-repo/ClipX/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 ## 项目概述
 
 ClipX 是一个 Windows 剪贴板管理工具，旨在解决 Windows 原生剪贴板（Win+V）的以下问题：
@@ -16,13 +19,14 @@ ClipX 是一个 Windows 剪贴板管理工具，旨在解决 Windows 原生剪�
 
 ### 功能特性
 
-- **剪贴板历史管理** - 自动记录所有复制内容
+- **剪贴板历史管理** - 自动记录所有复制内容（文本、HTML、图像、文件）
 - **全文搜索** - 支持中英文搜索，实时过滤
 - **标签分类** - 为剪贴板条目添加标签，永久保存
 - **收藏功能** - 标记常用内容，快速访问
 - **现代UI** - 半透明磨砂玻璃质感，深色主题
 - **轻量级** - 内存占用 < 10MB，冷启动 < 500ms
 - **本地存储** - 数据完全本地化，无网络依赖
+- **快捷键支持** - F9 唤出界面，上下键选择，Enter 确认，Del 删除
 
 ### 系统架构
 
@@ -162,20 +166,25 @@ cmake --build build --config Release
 .\build_and_zip.ps1
 ```
 
-执行后会自动生成 `ClipX-v1.0.0-Win64.zip` 发布包。
+执行后会自动生成 `ClipX-V{version}-Win64.zip` 发布包（版本号自动从 git tag 获取）。
 
 ## 构建发布包
 
 ### 快速打包
 
 ```powershell
+# 1. 创建 git tag
+git tag V0.0.1
+
+# 2. 运行构建脚本
 .\build_and_zip.ps1
 ```
 
-这会生成 `ClipX-v1.0.0-Win64.zip`，包含：
-- `ClipX.exe`
-- `Overlay.exe`
-- `README.md` (用户文档)
+这会生成 `ClipX-V0.0.1-Win64.zip`，包含：
+- `ClipX.exe` - 主程序（后台守护进程）
+- `Overlay.exe` - UI 浮层程序
+- `sqlite3.dll` - SQLite 数据库 DLL
+- `README.md` - 用户文档
 
 ### 手动打包
 
@@ -258,6 +267,7 @@ ctest -C Release
 **问题：找不到 SQLite3**
 ```
 解决方案：确保安装 vcpkg 并设置 CMAKE_TOOLCHAIN_FILE
+vcpkg install sqlite3:x64-windows
 ```
 
 **问题：资源文件编译失败**
@@ -267,33 +277,99 @@ ctest -C Release
 
 ### 运行时错误
 
-**问题：Overlay 启动失败**
+**问题：程序启动失败（缺少 DLL）**
 ```
-检查：Overlay.exe 是否与 ClipX.exe 在同一目录
+解决方案：确保 sqlite3.dll 与程序在同一目录
+```
+
+**问题：中文显示为空白**
+```
+解决方案：确保剪贴板数据编码正确（UTF-8）
+```
+
+**问题：右键删除没有反应**
+```
+解决方案：确保已更新到 V0.0.1 或更高版本
 ```
 
 **问题：热键不生效**
 ```
-检查：F9 是否被其他程序占用
+解决方案：检查 F9 是否被其他程序占用
+```
+
+## 使用说明
+
+### 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| F9 | 打开剪贴板历史窗口 |
+| ↑ / ↓ | 上下选择条目 |
+| Enter | 粘贴选中条目 |
+| Esc | 关闭窗口 |
+| Del | 删除选中条目 |
+| Ctrl+F | 聚焦搜索框 |
+
+### 右键菜单
+
+- **Add Tag** - 为条目添加标签（带标签的条目会永久保存）
+- **View Tags** - 查看条目的所有标签
+- **Delete** - 删除条目
+
+### 数据存储
+
+- **内存条目**：未添加标签的条目仅存储在内存中，重启后清空
+- **持久化条目**：添加标签的条目会保存到数据库，永久保留
+- **自动清理**：可配置天数自动清理旧条目（保留收藏）
+
+### 配置文件
+
+配置文件位于 `%APPDATA%\ClipX\config.json`：
+
+```json
+{
+  "behavior": {
+    "deduplicate": true,
+    "paste_after_select": false,
+    "auto_start": false
+  },
+  "storage": {
+    "auto_cleanup_days": 30
+  },
+  "advanced": {
+    "db_file": "clipx.db",
+    "log_level": "info"
+  }
+}
 ```
 
 ## 版本发布
 
 ### 发布流程
 
-1. 更新版本号（CMakeLists.txt）
-2. 更新 CHANGELOG.md
-3. 运行 `build_and_zip.ps1`
-4. 测试生成的 ZIP
-5. 创建 Git Tag
-6. 上传到 Release
+1. 更新代码和测试
+2. 提交所有更改 (`git commit`)
+3. 创建 Git Tag (`git tag V1.0.0`)
+4. 运行 `build_and_zip.ps1` 生成发布包
+5. 测试生成的 ZIP
+6. 推送到远程 (`git push origin master --tags`)
+7. 上传 ZIP 到 GitHub Release
 
 ### 版本命名
 
 ```
-v主版本.次版本.修订号
-例如：v1.0.0
+V主版本.次版本.修订号
+例如：V0.0.1, V1.0.0
 ```
+
+### 当前版本
+
+- **V0.0.1** - 初始版本
+  - 剪贴板历史管理
+  - 全文搜索（支持中文）
+  - 标签分类和收藏
+  - 现代化 UI 设计
+  - 右键菜单和快捷键支持
 
 ## 贡献指南
 
