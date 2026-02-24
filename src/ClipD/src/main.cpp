@@ -310,6 +310,10 @@ private:
         if (request.action == IPCAction::SET_CLIPBOARD) {
             int64_t id = request.params.value("id", static_cast<int64_t>(0));
 
+            // Tell the listener to ignore the next clipboard change
+            // (since we're about to set the clipboard ourselves)
+            m_clipboardListener.IgnoreNextChange();
+
             if (!DataManager::Instance().SetClipboard(id)) {
                 return IPCResponse::Error(request.requestId, "Failed to set clipboard", IPCError::CLIPBOARD_WRITE_FAILED);
             }

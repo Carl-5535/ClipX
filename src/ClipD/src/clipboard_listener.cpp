@@ -46,6 +46,11 @@ void ClipboardListener::SetOnClipboardChangeCallback(OnClipboardChangeCallback c
     m_onClipboardChange = std::move(callback);
 }
 
+void ClipboardListener::IgnoreNextChange() {
+    m_ignoreNextChange = true;
+    LOG_DEBUG("Ignoring next clipboard change");
+}
+
 void ClipboardListener::ProcessClipboardChange() {
     if (!m_initialized) return;
 
@@ -55,6 +60,13 @@ void ClipboardListener::ProcessClipboardChange() {
         return;
     }
     m_lastClipboardSequence = currentSequence;
+
+    // Check if we should ignore this change (e.g., when we set clipboard ourselves)
+    if (m_ignoreNextChange) {
+        m_ignoreNextChange = false;
+        LOG_DEBUG("Ignored clipboard change as requested");
+        return;
+    }
 
     LOG_DEBUG("Clipboard changed, sequence: " + std::to_string(currentSequence));
 

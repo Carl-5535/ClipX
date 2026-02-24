@@ -201,28 +201,83 @@ std::string GeneratePreview(const std::vector<uint8_t>& data, size_t maxLength) 
     std::string text(reinterpret_cast<const char*>(data.data()),
                      std::min(data.size(), maxLength * 2));
 
-    // Check if it's printable text
+    // Check if it's valid UTF-8 text (not binary)
     bool isText = true;
-    for (size_t i = 0; i < std::min(text.size(), static_cast<size_t>(50)); i++) {
+    size_t checkBytes = std::min(text.size(), static_cast<size_t>(200));
+    for (size_t i = 0; i < checkBytes; ) {
         unsigned char c = static_cast<unsigned char>(text[i]);
+
+        // ASCII control characters (except common whitespace)
         if (c < 32 && c != '\t' && c != '\n' && c != '\r') {
             isText = false;
             break;
         }
+
+        // Check UTF-8 multibyte sequences
+        if (c >= 0x80) {
+            // Multibyte UTF-8 character
+            int expectedBytes;
+            if ((c & 0xE0) == 0xC0) {
+                expectedBytes = 2;  // 110xxxxx
+            } else if ((c & 0xF0) == 0xE0) {
+                expectedBytes = 3;  // 1110xxxx
+            } else if ((c & 0xF8) == 0xF0) {
+                expectedBytes = 4;  // 11110xxx
+            } else {
+                isText = false;  // Invalid UTF-8 start byte
+                break;
+            }
+
+            // Check continuation bytes
+            if (i + expectedBytes > text.size()) {
+                isText = false;
+                break;
+            }
+            for (int j = 1; j < expectedBytes; j++) {
+                unsigned char next = static_cast<unsigned char>(text[i + j]);
+                if ((next & 0xC0) != 0x80) {  // Not 10xxxxxx
+                    isText = false;
+                    break;
+                }
+            }
+            if (!isText) break;
+            i += expectedBytes;
+        } else {
+            i++;
+        }
     }
 
     if (isText) {
-        // Replace newlines with spaces
+        // Replace newlines/tabs with spaces, keep UTF-8 characters intact
         std::string preview;
-        for (char c : text) {
+        for (size_t i = 0; i < text.size(); ) {
+            unsigned char c = static_cast<unsigned char>(text[i]);
+
             if (c == '\n' || c == '\r') {
                 if (!preview.empty() && preview.back() != ' ') {
                     preview += ' ';
                 }
+                i++;
             } else if (c == '\t') {
                 preview += ' ';
-            } else if (c >= 32) {
-                preview += c;
+                i++;
+            } else if (c < 0x80) {
+                // ASCII character
+                if (c >= 32 || c == ' ') {
+                    preview += c;
+                }
+                i++;
+            } else {
+                // UTF-8 multibyte character - copy all bytes
+                int charBytes = 1;
+                if ((c & 0xE0) == 0xC0) charBytes = 2;
+                else if ((c & 0xF0) == 0xE0) charBytes = 3;
+                else if ((c & 0xF8) == 0xF0) charBytes = 4;
+
+                for (int j = 0; j < charBytes && i + j < text.size(); j++) {
+                    preview += text[i + j];
+                }
+                i += charBytes;
             }
         }
         return TruncateString(Trim(preview), maxLength);

@@ -589,6 +589,20 @@ std::vector<uint8_t> DataManager::GetEntryData(int64_t id) {
 bool DataManager::Delete(int64_t id) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
+    // Check if it's a memory entry (negative ID)
+    if (id < 0) {
+        auto it = std::find_if(m_memoryEntries.begin(), m_memoryEntries.end(),
+            [id](const ClipboardEntry& e) { return e.id == id; });
+
+        if (it != m_memoryEntries.end()) {
+            m_memoryEntries.erase(it);
+            LOG_DEBUG("Deleted memory entry: " + std::to_string(id));
+            return true;
+        }
+        return false;
+    }
+
+    // Database entry
     if (!m_initialized) return false;
 
     const char* sql = "DELETE FROM clipboard_entries WHERE id = ?";
@@ -609,7 +623,7 @@ bool DataManager::Delete(int64_t id) {
         return false;
     }
 
-    LOG_DEBUG("Deleted entry: " + std::to_string(id));
+    LOG_DEBUG("Deleted database entry: " + std::to_string(id));
     return true;
 }
 

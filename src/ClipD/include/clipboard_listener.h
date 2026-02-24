@@ -18,6 +18,9 @@ public:
     void SetOnClipboardChangeCallback(OnClipboardChangeCallback callback);
     void ProcessClipboardChange();
 
+    // Ignore the next clipboard change (used when we set clipboard ourselves)
+    void IgnoreNextChange();
+
     // Get source application name
     static std::string GetSourceApplication();
 
@@ -32,6 +35,7 @@ private:
     bool m_initialized = false;
     OnClipboardChangeCallback m_onClipboardChange;
     int64_t m_lastClipboardSequence = 0;
+    bool m_ignoreNextChange = false;
 };
 
 } // namespace clipx

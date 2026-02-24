@@ -20,9 +20,9 @@ BEGIN
             VALUE "CompanyName", "ClipX"
             VALUE "FileDescription", "ClipX Clipboard Manager"
             VALUE "FileVersion", "1.0.0.0"
-            VALUE "InternalName", "ClipD"
+            VALUE "InternalName", "ClipX"
             VALUE "LegalCopyright", "Copyright (C) 2024"
-            VALUE "OriginalFilename", "ClipD.exe"
+            VALUE "OriginalFilename", "ClipX.exe"
             VALUE "ProductName", "ClipX"
             VALUE "ProductVersion", "1.0.0.0"
         END

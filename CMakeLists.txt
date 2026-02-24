@@ -29,6 +29,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 add_subdirectory(src)
 
 # Install targets
-install(TARGETS ClipD Overlay
+install(TARGETS ClipX Overlay
     RUNTIME DESTINATION bin
 )

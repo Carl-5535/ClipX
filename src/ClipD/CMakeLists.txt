@@ -1,6 +1,6 @@
 # src/ClipD/CMakeLists.txt
 
-add_executable(ClipD WIN32
+add_executable(ClipX WIN32
     src/main.cpp
     src/clipboard_listener.cpp
     src/data_manager.cpp
@@ -12,13 +12,13 @@ add_executable(ClipD WIN32
 
 # Add icon resource separately using Windows resource notation
 set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/resources")
-target_sources(ClipD PRIVATE resources/ClipD.rc)
+target_sources(ClipX PRIVATE resources/ClipD.rc)
 
-target_include_directories(ClipD PRIVATE
+target_include_directories(ClipX PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(ClipD PRIVATE
+target_link_libraries(ClipX PRIVATE
     Common
     unofficial::sqlite3::sqlite3
     shell32
@@ -27,6 +27,7 @@ target_link_libraries(ClipD PRIVATE
 )
 
 # Set entry point to wWinMain
-set_target_properties(ClipD PROPERTIES
+set_target_properties(ClipX PROPERTIES
     LINK_FLAGS "/ENTRY:wWinMainCRTStartup"
+    OUTPUT_NAME "ClipX"
 )

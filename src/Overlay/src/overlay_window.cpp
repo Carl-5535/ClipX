@@ -593,7 +593,12 @@ void OverlayWindow::OnKeyDown(WPARAM vk) {
             break;
 
         case VK_DELETE:
-            // Delete selected item - handled by main
+            // Delete selected item
+            if (m_selectedIndex >= 0 && m_selectedIndex < static_cast<int>(m_entries.size())) {
+                if (m_onDelete) {
+                    m_onDelete(m_entries[m_selectedIndex].id);
+                }
+            }
             break;
 
         case VK_BACK:
@@ -864,7 +869,14 @@ void OverlayWindow::ShowContextMenu(int x, int y, int itemIndex) {
     POINT pt = {x, y};
     ClientToScreen(m_hwnd, &pt);
 
+    // Set flag to prevent auto-hide when menu is shown
+    m_showingDialog = true;
+
     int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD, pt.x, pt.y, 0, m_hwnd, NULL);
+
+    // Reset flag after menu closes
+    m_showingDialog = false;
+
     DestroyMenu(hMenu);
 
     switch (cmd) {
@@ -885,12 +897,18 @@ void OverlayWindow::ShowContextMenu(int x, int y, int itemIndex) {
         }
         case 2: // Delete
             if (m_onDelete) {
+                // Keep dialog flag true during delete to prevent window hiding
+                m_showingDialog = true;
                 m_onDelete(m_entries[itemIndex].id);
                 // Note: entries will be updated via SetEntries callback from main.cpp
                 // Refresh tag panel
                 if (m_onGetAllTags) {
                     m_allTags = m_onGetAllTags();
                 }
+                // Reset flag after delete completes
+                m_showingDialog = false;
+                // Ensure window stays visible and focused
+                InvalidateRect(m_hwnd, nullptr, FALSE);
             }
             break;
         case 3: { // View Tags
