@@ -2,7 +2,7 @@
 
 > 超轻量级、本地持久化、无条数限制的 Windows 剪贴板增强工具
 
-[![Release](https://img.shields.io/badge/release-V0.0.1-blue)](https://github.com/your-repo/ClipX/releases/latest)
+[![Release](https://img.shields.io/badge/release-V0.0.1-blue)](https://github.com/Carl-5535/ClipX/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## 项目概述
@@ -385,5 +385,5 @@ MIT License
 
 ## 联系方式
 
-- Issues: [GitHub Issues](https://github.com/your-repo/ClipX/issues)
-- Discussions: [GitHub Discussions](https://github.com/your-repo/ClipX/discussions)
+- Issues: [GitHub Issues](https://github.com/Carl-5535/ClipX/issues)
+- Discussions: [GitHub Discussions](https://github.com/Carl-5535/ClipX/discussions)
