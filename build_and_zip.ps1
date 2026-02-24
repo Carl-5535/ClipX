@@ -67,10 +67,21 @@ if (Test-Path $packageDir) {
 New-Item -ItemType Directory -Path $packageDir | Out-Null
 
 # Copy files
-Write-Host "Copying executables..."
+Write-Host "Copying executables and dependencies..."
 Copy-Item "$releaseDir\ClipX.exe" -Destination $packageDir
 Copy-Item "$releaseDir\Overlay.exe" -Destination $packageDir
-Copy-Item "README_USER.md" -Destination "$packageDir\README.md"
+
+# Copy SQLite DLL if it exists
+if (Test-Path "$releaseDir\sqlite3.dll") {
+    Copy-Item "$releaseDir\sqlite3.dll" -Destination $packageDir
+    Write-Host "  Copied: sqlite3.dll"
+}
+
+Copy-Item "README_USER.md" -Destination "$packageDir\README.md" -ErrorAction SilentlyContinue
+if (-not (Test-Path "$packageDir\README.md")) {
+    # Fallback to regular README if README_USER.md doesn't exist
+    Copy-Item "README.md" -Destination "$packageDir\README.md" -ErrorAction SilentlyContinue
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
