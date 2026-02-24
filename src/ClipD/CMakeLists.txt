@@ -10,6 +10,10 @@ add_executable(ClipD WIN32
     src/auto_start.cpp
 )
 
+# Add icon resource separately using Windows resource notation
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/resources")
+target_sources(ClipD PRIVATE resources/ClipD.rc)
+
 target_include_directories(ClipD PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

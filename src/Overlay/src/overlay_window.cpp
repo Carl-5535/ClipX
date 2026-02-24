@@ -445,8 +445,13 @@ void OverlayWindow::OnPaint() {
     // Draw items
     int itemY = tagPanelY;
     m_visibleItemCount = 0;
+    int itemAreaBottom = height - m_toolbarHeight - m_padding;  // Bottom of item drawing area
 
-    for (size_t i = static_cast<size_t>(m_scrollOffset); i < m_entries.size() && itemY < height - m_toolbarHeight; i++) {
+    for (size_t i = static_cast<size_t>(m_scrollOffset); i < m_entries.size(); i++) {
+        // Check if the next item would fit in the available space
+        if (itemY + m_itemHeight > itemAreaBottom) {
+            break;
+        }
         int itemIndex = static_cast<int>(i);
         RECT itemRect = {m_padding, itemY, width - m_padding, itemY + m_itemHeight};
 
@@ -741,13 +746,14 @@ void OverlayWindow::OnMouseWheel(int delta) {
 void OverlayWindow::UpdateLayout() {
     // Calculate window height based on items
     int tagPanelHeight = (m_showTagPanel && !m_allTags.empty()) ? m_tagPanelHeight : 0;
+    // Fixed content includes search bar, tag panel, toolbar, and padding
     int contentHeight = m_searchBarHeight + m_padding * 2 + tagPanelHeight + m_toolbarHeight + m_padding;
     int itemsHeight = static_cast<int>(m_entries.size()) * (m_itemHeight + 4);
     m_height = std::min(contentHeight + itemsHeight, m_maxHeight);
 
-    // Adjust visible item count
-    int availableHeight = m_height - contentHeight;
-    m_visibleItemCount = availableHeight / (m_itemHeight + 4);
+    // Adjust visible item count - available height for items
+    int availableHeight = m_height - (m_searchBarHeight + m_padding * 2 + tagPanelHeight + m_toolbarHeight + m_padding);
+    m_visibleItemCount = std::max(1, availableHeight / (m_itemHeight + 4));
 
     if (m_hwnd) {
         RECT rect;

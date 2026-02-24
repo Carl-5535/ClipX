@@ -7,6 +7,10 @@ add_executable(Overlay WIN32
     src/renderer.cpp
 )
 
+# Add icon resource separately
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/resources")
+target_sources(Overlay PRIVATE resources/Overlay.rc)
+
 target_include_directories(Overlay PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

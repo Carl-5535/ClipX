@@ -344,7 +344,7 @@ std::vector<ClipboardEntry> DataManager::Query(const QueryOptions& options) {
     std::vector<ClipboardEntry> entries;
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    // Add memory entries first (they are more recent)
+    // Add memory entries
     for (const auto& memEntry : m_memoryEntries) {
         if (options.filterType.has_value() && memEntry.type != *options.filterType) {
             continue;
@@ -357,6 +357,7 @@ std::vector<ClipboardEntry> DataManager::Query(const QueryOptions& options) {
 
     if (!m_initialized) return entries;
 
+    // Query database entries
     std::ostringstream sql;
     sql << "SELECT id, timestamp, type, data, preview, source_app, copy_count, is_favorited, is_tagged FROM clipboard_entries";
 
@@ -401,6 +402,46 @@ std::vector<ClipboardEntry> DataManager::Query(const QueryOptions& options) {
     }
 
     sqlite3_finalize(stmt);
+
+    // Sort all entries (both memory and database) together
+    switch (options.sortOrder) {
+        case QueryOptions::SortOrder::LatestFirst:
+            std::sort(entries.begin(), entries.end(),
+                [](const ClipboardEntry& a, const ClipboardEntry& b) {
+                    return a.timestamp > b.timestamp;
+                });
+            break;
+        case QueryOptions::SortOrder::OldestFirst:
+            std::sort(entries.begin(), entries.end(),
+                [](const ClipboardEntry& a, const ClipboardEntry& b) {
+                    return a.timestamp < b.timestamp;
+                });
+            break;
+        case QueryOptions::SortOrder::MostCopied:
+            std::sort(entries.begin(), entries.end(),
+                [](const ClipboardEntry& a, const ClipboardEntry& b) {
+                    if (a.copyCount != b.copyCount) {
+                        return a.copyCount > b.copyCount;
+                    }
+                    return a.timestamp > b.timestamp;
+                });
+            break;
+        case QueryOptions::SortOrder::Alphabetical:
+            std::sort(entries.begin(), entries.end(),
+                [](const ClipboardEntry& a, const ClipboardEntry& b) {
+                    return a.preview < b.preview;
+                });
+            break;
+    }
+
+    // Apply offset and limit after sorting
+    size_t startIdx = std::min(static_cast<size_t>(options.offset), entries.size());
+    size_t endIdx = std::min(startIdx + static_cast<size_t>(options.limit), entries.size());
+
+    if (startIdx > 0 || endIdx < entries.size()) {
+        entries = std::vector<ClipboardEntry>(entries.begin() + startIdx, entries.begin() + endIdx);
+    }
+
     return entries;
 }
 
@@ -959,7 +1000,15 @@ std::vector<std::pair<std::string, int>> DataManager::GetAllTags() {
 
     if (!m_initialized) return tags;
 
-    const char* sql = "SELECT tag_name, COUNT(*) as count FROM entry_tags GROUP BY tag_name ORDER BY count DESC, tag_name ASC";
+    // Use INNER JOIN to only count tags that have valid entries
+    // This filters out orphaned tag records that reference deleted entries
+    const char* sql = R"(
+        SELECT t.tag_name, COUNT(*) as count
+        FROM entry_tags t
+        INNER JOIN clipboard_entries e ON t.entry_id = e.id
+        GROUP BY t.tag_name
+        ORDER BY count DESC, t.tag_name ASC
+    )";
 
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(m_db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -978,6 +1027,32 @@ std::vector<std::pair<std::string, int>> DataManager::GetAllTags() {
     sqlite3_finalize(stmt);
     LOG_DEBUG("GetAllTags returned " + std::to_string(tags.size()) + " tags");
     return tags;
+}
+
+int DataManager::CleanupOrphanedTags() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    if (!m_initialized) return 0;
+
+    // Delete tag records that reference non-existent entries
+    const char* sql = R"(
+        DELETE FROM entry_tags
+        WHERE entry_id NOT IN (SELECT id FROM clipboard_entries)
+    )";
+
+    char* errorMsg = nullptr;
+    int result = sqlite3_exec(m_db, sql, nullptr, nullptr, &errorMsg);
+
+    int deletedCount = 0;
+    if (result == SQLITE_OK) {
+        deletedCount = static_cast<int>(sqlite3_changes(m_db));
+        LOG_INFO("Cleaned up " + std::to_string(deletedCount) + " orphaned tag records");
+    } else {
+        LOG_ERROR("Failed to cleanup orphaned tags: " + std::string(errorMsg ? errorMsg : "unknown"));
+        if (errorMsg) sqlite3_free(errorMsg);
+    }
+
+    return deletedCount;
 }
 
 } // namespace clipx

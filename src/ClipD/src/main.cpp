@@ -63,6 +63,12 @@ public:
             return false;
         }
 
+        // Clean up orphaned tag records (tags pointing to deleted entries)
+        int cleanedTags = DataManager::Instance().CleanupOrphanedTags();
+        if (cleanedTags > 0) {
+            LOG_INFO("Cleaned up " + std::to_string(cleanedTags) + " orphaned tag records on startup");
+        }
+
         // Clear memory entries on startup (only tagged entries persist)
         DataManager::Instance().ClearMemoryEntries();
 
@@ -108,6 +114,7 @@ public:
         }
 
         m_trayIcon.SetTooltip("ClipX");
+        m_trayIcon.SetIconFromResource(1);  // Load icon from resources (ID = 1)
         m_trayIcon.SetMenuCallback([this](int id) {
             OnTrayMenuCommand(id);
         });

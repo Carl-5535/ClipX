@@ -71,6 +71,10 @@ public:
     std::vector<std::string> GetTags(int64_t entryId);
     std::vector<std::pair<std::string, int>> GetAllTags();  // Returns tag name and count
 
+    // Cleanup orphaned tag records (tags pointing to deleted entries)
+    // Returns the number of orphaned records cleaned up
+    int CleanupOrphanedTags();
+
     // Check if initialized
     bool IsInitialized() const { return m_initialized; }
 

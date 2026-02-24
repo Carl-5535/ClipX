@@ -24,8 +24,12 @@ cmake-build-*/
 *.lastbuildstate
 *.idb
 *.res
-*.rc
 *.bin
+
+# Resource files (but allow our custom icons)
+*.rc
+!src/*/resources/*.rc
+!src/*/resources/*.ico
 
 # CMake cache
 CMakeCache.txt
@@ -63,3 +67,4 @@ desktop.ini
 *.temp
 *.bak
 *~
+test.res
