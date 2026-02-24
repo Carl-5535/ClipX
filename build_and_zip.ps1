@@ -45,7 +45,19 @@ Write-Host ""
 # Create package
 $packageDir = "package"
 $releaseDir = "build\bin\Release"
-$version = "1.0.0"
+
+# Get version from git tag, fallback to "0.0.1" if no tag
+try {
+    $tagVersion = git describe --tags --abbrev=0 2>$null
+    if ($tagVersion -match "^V?(\d+\.\d+\.\d+)") {
+        $version = $matches[1]
+    } else {
+        $version = "0.0.1"
+    }
+} catch {
+    $version = "0.0.1"
+}
+
 $zipName = "ClipX-v$version-Win64.zip"
 
 Write-Host "Creating portable package..." -ForegroundColor Yellow
